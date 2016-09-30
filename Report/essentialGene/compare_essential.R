@@ -44,7 +44,7 @@ CD437$gamma <- as.numeric(CD437$gamma); CD437$p.value <- as.numeric(CD437$p.valu
 
 # exploratory analysis
 sci.K562 <- cbind(sci.K562, K562.sig = as.numeric(sci.K562$K562.adjusted.p.value < 0.05))
-sum(sci.K562$K562.sig); sum(sci.K562$K562.sig[sci.K562$K562.CS < 0])     # num of hits/positive hits: 2335/1663
+sum(sci.K562$K562.sig); sum(sci.K562$K562.sig[sci.K562$K562.CS < 0])     # num of hits/negative hits: 2335/1663
 
 max.new <- cbind(max.new, max.new.hit.prob = 1 - max.new$p.value)
 sum(max.new$max.new.hit.prob > 0.95); sum(max.new$max.new.hit.prob[max.new$ave_gamma < 0] > 0.95)   # num of possible hits/negtive hits: 2362/1969
@@ -117,3 +117,22 @@ hit.gene.table <- merge(hit.gene.table, CD437[,-4], by = "Gene")
 colnames(hit.gene.table)[4:9] <- c("max.new.gamma", "max.new.p.value", "max.old.gamma", "max.old.p.value", "CD437.gamma", "CD437.p.value")
 
 write.csv(hit.gene.table, file = "essential.genes.csv", row.names = FALSE)
+
+
+
+### 5. plot reverse ROC
+################################################
+# set max.old as the true value
+sci.K562 <- cbind(sci.K562, sci.prob = 1 - sci.K562$K562.adjusted.p.value)
+pred.roc.re <- data.frame(Gene = max.old$Gene, max.old.sig = as.numeric(max.old$p.value < 0.05))
+pred.roc.re <- merge(pred.roc.re, sci.K562[,c("Gene","sci.prob")], by = "Gene")
+pred.roc.re <- merge(pred.roc.re, max.new[,c("Gene","max.new.hit.prob")], by = "Gene")
+pred.roc.re <- merge(pred.roc.re, CD437[,c("Gene","CD437.hit.prob")], by = "Gene")
+
+# plot ROC
+png("ROC.reverse.05.png", width = 900, height = 700, units = "px")
+plot.roc(pred.roc.re$max.old.sig, pred.roc.re$sci.prob, col = "red", main = "ROC for different CRISPR screen (using p-value < 0.05 as cut off)")
+plot.roc(pred.roc.re$max.old.sig, pred.roc.re$max.new.hit.prob, col = "blue", add = TRUE)
+plot.roc(pred.roc.re$max.old.sig, pred.roc.re$CD437.hit.prob, col = "green", add = TRUE)
+legend("bottomright", legend = c("sci (AUC:0.736)", "max.new (AUC:0.939)", "CD437 (AUC:0.798)"), col = c("red", "blue", "green"), lty = 1, lwd = 2)
+dev.off()
